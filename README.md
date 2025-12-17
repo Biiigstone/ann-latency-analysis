@@ -1,15 +1,12 @@
-# 초안
+# 고차원 임베딩에서의 ANN 알고리즘 벤치마킹 및 선택 제안
 
-작성일시: 2025년 12월 10일 오후 6:49
-복습: No
-
-**1. 개요 (Introduction)**
+**1. 개요**
 
 “Garbage in, Garbage out(GIGO).” LLM을 위시한 AI가 아무리 발전하더라도, 양질의 입력 없이는 좋은 결과를 기대하기 어렵다. 이는 RAG 시스템의 성능이 LLM에게 제공되는 컨텍스트의 품질, 즉 Vector Search의 결과에 좌우되는 이유이다. 그러나 실시간 서비스 구현과 사용자 경험에 있어 지연 시간은 중요한 요소이며, 검색의 정확도와 지연 시간은 불가피한 트레이드 오프 관계에 있다.  
 
 전통적인 KNN 방식은 전수 조사를 통해 정확도 100%의 결과를 내놓지만, 데이터 규모 증가에 따른 선형적인 탐색 시간 증가로 인해 대규모 시스템에는 적용하기 어렵다는 한계가 명확하다. 이에 대한 대안 ANN(Approximate Nearest Neighbor)은 ‘정확한’ 일치 대신 ‘충분한’ 일치를 통해 검색 효율을 극대화한다. 이를 통해 방대한 데이터 세트에서도 빠른 검색이 가능해진다. 본 글에서는 RAG에 사용되는 고차원 임베딩에서 현대 ANN 알고리즘의 성능을 벤치마킹하고, 실험 결과를 바탕으로 알고리즘 선택 기준을 제시한다.
 
-**2. 이론적 배경 (Background)**
+**2. 이론적 배경**
 
 **2.1. KD-Tree (K-Dimensional Tree)**
 
@@ -26,9 +23,9 @@
 
 - K-mean 클러스터링에 기반하여 벡터 공간을 분할하는 방식
 - 동작
-    1. 전체 데이터를 nlist 개의 클러스터로 나누고, 각 클러스터의 중심점(Centroid)을 계산한다.
-    2. 쿼리가 들어오면 쿼리와 가장 가까운 nprobe 개의 Centroid를 찾는다(Coarse Search).
-    3. 해당 Centroid가 속한 클러스터들의 벡터들과 전수조사를 수행하여 가장 유사한 벡터들을 반환한다.
+    - 전체 데이터를 nlist 개의 클러스터로 나누고, 각 클러스터의 중심점(Centroid)을 계산한다.
+    - 쿼리가 들어오면 쿼리와 가장 가까운 nprobe 개의 Centroid를 찾는다(Coarse Search).
+    - 해당 Centroid가 속한 클러스터들의 벡터들과 전수조사를 수행하여 가장 유사한 벡터들을 반환한다.
 - 주요 파라미터
     - nlist : 생성할 클러스터(파티션)의 개수. nlist가 많아지면 더 많은 centroid와 비교하지만, 클러스터 내의 데이터 수는 줄어들어 검색 속도가 빨라진다.
     - nprobe : 비교 및 선정할 centroid 개수. 값이 클수록 최종적으로 전수 조사할 클러스터가 많아지므로 검색 속도가 느려지지만 검색 품질이 좋아진다.
@@ -50,7 +47,7 @@
     - efConstruction : 노드 삽입 시 연결될 노드를 결정하기 위해 사용되는 후보군의 크기. 값이 클 수록 더 많은 후보를 검토하므로 더 정확해지고 Clique(끼리끼리 뭉치는 현상)를 막고 다양성을 확보할 수 있다. 반면 삽입(인덱싱) 시간이 증가한다.
     - efSearch : 탐색 시 사용되는 잠재적인 후보군의 크기로, 높을 수록 Local Minima에 빠질 확률이 줄어 정확도가 높아진다. 반면 검색 시간이 증가한다.
 
-**3. 실험 설계 (Experimental Setup)**
+**3. 실험 설계**
 
 - **데이터셋:** Random Vectors
 - 차원(d): 1536, 3072
@@ -66,8 +63,7 @@
 
 <표1.> d=1536에서의 Latency 측정 결과표
 
-| 벡터
-  수 | FlatL2 | IVF-flat | HNSW |
+| 벡터수 | FlatL2 | IVF-flat | HNSW |
 | --- | --- | --- | --- |
 | 10,000 | 9 ms | 3.01 ms | 26 ms |
 | 50,000 | 43 ms | 73 ms | 65 ms |
@@ -81,8 +77,7 @@
 
 <표 2.> d=3072에서의 Latency 측정 결과표
 
-| 벡터
-  수 | FlatL2 | IVF-flat | HNSW |
+| 벡터수 | FlatL2 | IVF-flat | HNSW |
 | --- | --- | --- | --- |
 | 10,000 | 18 ms | 12 ms | 70 ms |
 | 50,000 | 93 ms | 219 ms | 133 ms |
@@ -137,12 +132,12 @@
 - 가설 2 : 초고차원의 임베딩
     - 실험에서 사용한 1536/3072 차원 데이터는 고용량 벡터이다. 이러한 데이터의 고차원 특성이 성능 저하의 원인이 되었을 가능성을 배제할 수 없다.
 
-**5. 조건 최적화 및 재실험 (Optimized Experiments)**
+**5. 조건 최적화 및 재실험**
 
 5.1 실험 조건 변경
 
 - 차원 축소 : BERT나 일부 오픈 소스 모델에서 사용되는 d=768 환경 추가
-- IVF-flat의 nprobe 최적화 : 기존 비율(3.1%)기반 설정을 16으로 고정[참고](https://www.emergentmind.com/topics/milvus-hnsw-ivf).
+- IVF-flat의 nprobe 최적화 : 기존 비율(3.1%)기반 설정을 16으로 고정([참고](https://www.emergentmind.com/topics/milvus-hnsw-ivf)).
 
 5.2 재실험 내용 및 결과
 
@@ -251,8 +246,7 @@
 
 | 데이터 규모(N) | 임베딩 차원(d) | 우선 순위 / 제약 사항 | 추천 알고리즘 | 비고 |
 | --- | --- | --- | --- | --- |
-| 소규모(≤ 100K) | 전 구간(768~3072) | 정확도 최우선 | FlatL2 | - 정확도 100%
-- 속도 저하 미미 |
+| 소규모(≤ 100K) | 전 구간(768~3072) | 정확도 최우선 | FlatL2 | - 정확도 100% <br>- 속도 저하 미미 |
 | 대규모(> 100K) | 고차원(≥ 1536) | 속도 및 정확도 | HNSW | - 높은 정확도 |
 | 대규모(> 100K) | 저/중차원(≤ 768) | 검색 속도 최우선 | IVF-flat | - 적절한 nprobe 튜닝 필요 |
 | 대규모(> 100K) | 전 구간 | 메모리 부족(제약) | IVF-flat | - 적절한 nprobe 튜닝 필요 |
@@ -266,8 +260,13 @@
 - 제한적인 리소스 환경 & 초대규모 데이터: 하드웨어 메모리 제약 등으로 인해 HNSW의 사용이 불가능한 경우, IVF 계열을 채택하며, 반드시 Re-Ranker와 조합하여 사용한다.
 
 **7. 참고 문헌**
+
 [1] https://milvus.io/ko/blog/understanding-ivf-vector-index-how-It-works-and-when-to-choose-it-over-hnsw.md
+
 [2] https://www.pinecone.io/learn/series/faiss/hnsw/
+
 [3] https://milvus.io/docs/ko/performance_faq.md
+
 [4] https://www.emergentmind.com/topics/milvus-hnsw-ivf
+
 [5] https://www.elastic.co/search-labs/blog/hnsw-graph
